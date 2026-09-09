@@ -36,7 +36,7 @@ app.use(helmet());
 
 // CORS
 app.use(cors({
-  origin: 'https://mehbere-edomias-admin-1.onrender.com',
+  origin: '*', // Allow all origins for now; adjust in production
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
