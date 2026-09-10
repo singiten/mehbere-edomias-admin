@@ -2521,7 +2521,349 @@ export function ServiceManagement() {
     </div>
   );
 }
+// ─── SERVICE DETAIL PAGE ─────────────────────────────────────────────────────
 
+export function ServiceDetailPage() {
+  const { serviceId } = useParams();
+  const [service, setService] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [relatedServices, setRelatedServices] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        setLoading(true);
+        console.log('🔍 Fetching service:', serviceId);
+        
+        // Try the public endpoint first
+        let data;
+        try {
+          data = await publicApi.getServiceById(serviceId);
+        } catch (err) {
+          console.log('Public endpoint failed, trying alternative...');
+          // Fallback: get all services and find by ID
+          const allServices = await publicApi.getServices();
+          data = allServices?.find(s => s._id === serviceId);
+        }
+        
+        console.log('📋 Service data:', data);
+        
+        if (!data) {
+          throw new Error('Service not found');
+        }
+        
+        setService(data);
+        setError(null);
+
+        // Fetch related services
+        if (data && data.type) {
+          try {
+            const allServices = await publicApi.getServices();
+            const related = (Array.isArray(allServices) ? allServices : [])
+              .filter(s => s._id !== serviceId && s.type === data.type)
+              .slice(0, 3);
+            setRelatedServices(related);
+          } catch (err) {
+            console.error('Error fetching related services:', err);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error fetching service:', error);
+        setError('Service not found');
+        toast.error('Failed to load service');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (serviceId) {
+      fetchService();
+    }
+
+    window.scrollTo(0, 0);
+  }, [serviceId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: C.gray50 }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+      </div>
+    );
+  }
+
+  if (error || !service) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: C.gray50 }}>
+        <div className="text-center max-w-md mx-auto px-4">
+          <p className="text-5xl mb-4">⛪</p>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: C.blue }}>Service Not Found</h2>
+          <p className="text-sm mb-6" style={{ color: C.gray600 }}>
+            The service you're looking for doesn't exist or has been removed.
+          </p>
+          <Link to="/services">
+            <Btn variant="primary">Back to Services</Btn>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Get hero image
+  const heroImage = service.images && service.images.length > 0 
+    ? service.images[0].url 
+    : img('photo-1697926156905-c4fcd0504936');
+
+  return (
+    <div>
+      {/* Hero Section */}
+      <section 
+        className="relative py-28 flex items-center justify-center text-center"
+        style={{ 
+          background: `linear-gradient(rgba(15,26,46,0.85), rgba(26,54,93,0.75)), url(${heroImage}) center/cover` 
+        }}
+      >
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="text-6xl mb-4">{service.icon || '⛪'}</div>
+          {service.type && <Badge color="gold">{service.type}</Badge>}
+          <h1 className="text-3xl md:text-5xl font-bold mt-4 mb-4 leading-tight" style={{ color: '#fff' }}>
+            {service.title}
+          </h1>
+          {service.schedule && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" 
+              style={{ background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)' }}>
+              <span style={{ color: C.gold }}>🕐</span>
+              <span className="text-sm" style={{ color: C.goldLight }}>{service.schedule}</span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Description Section */}
+      <section className="py-16" style={{ background: '#fff' }}>
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex items-center gap-2 text-sm mb-8" style={{ color: C.gray400 }}>
+            <Link to="/" className="hover:text-gray-600">Home</Link>
+            <span>/</span>
+            <Link to="/services" className="hover:text-gray-600">Services</Link>
+            <span>/</span>
+            <span style={{ color: C.blue }}>{service.title}</span>
+          </div>
+
+          <div className="text-base leading-relaxed mb-12" style={{ color: C.gray700 }}>
+            <p className="mb-4 text-lg">{service.description}</p>
+            {service.detailedDescription && (
+              <p className="mb-4">{service.detailedDescription}</p>
+            )}
+          </div>
+
+          {/* Impact Stats */}
+          {service.impact && (service.impact.peopleServed > 0 || service.impact.churchesSupported > 0 || service.impact.eventsHeld > 0) && (
+            <div className="mb-12">
+              <h2 className="text-xl font-bold mb-6 text-center" style={{ color: C.blue }}>
+                Our Impact / ተጽዕኖአችን
+              </h2>
+              <div className="grid grid-cols-3 gap-4">
+                {service.impact.peopleServed > 0 && (
+                  <div className="text-center p-6 rounded-xl shadow-md" style={{ background: C.gray50, border: `1px solid ${C.gray100}` }}>
+                    <p className="text-4xl font-bold mb-2" style={{ color: C.gold }}>{service.impact.peopleServed}+</p>
+                    <p className="text-sm" style={{ color: C.gray600 }}>People Served</p>
+                    <p className="text-xs" style={{ color: C.gray400 }}>የተገለገሉ ሰዎች</p>
+                  </div>
+                )}
+                {service.impact.churchesSupported > 0 && (
+                  <div className="text-center p-6 rounded-xl shadow-md" style={{ background: C.gray50, border: `1px solid ${C.gray100}` }}>
+                    <p className="text-4xl font-bold mb-2" style={{ color: C.gold }}>{service.impact.churchesSupported}+</p>
+                    <p className="text-sm" style={{ color: C.gray600 }}>Churches Supported</p>
+                    <p className="text-xs" style={{ color: C.gray400 }}>የተደገፉ አብያተ ክርስቲያናት</p>
+                  </div>
+                )}
+                {service.impact.eventsHeld > 0 && (
+                  <div className="text-center p-6 rounded-xl shadow-md" style={{ background: C.gray50, border: `1px solid ${C.gray100}` }}>
+                    <p className="text-4xl font-bold mb-2" style={{ color: C.gold }}>{service.impact.eventsHeld}+</p>
+                    <p className="text-sm" style={{ color: C.gray600 }}>Events Held</p>
+                    <p className="text-xs" style={{ color: C.gray400 }}>የተካሄዱ ዝግጅቶች</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Image Gallery */}
+      {service.images && service.images.length > 0 && (
+        <section className="py-16" style={{ background: C.gray50 }}>
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="text-center mb-10">
+              <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: C.gold }}>
+                ፎቶዎች / Gallery
+              </p>
+              <h2 className="text-3xl font-bold" style={{ color: C.blue }}>
+                የአገልግሎቱ ፎቶዎች
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {service.images.map((image, index) => (
+                <div 
+                  key={index} 
+                  className="relative group cursor-pointer overflow-hidden rounded-xl aspect-square shadow-md hover:shadow-xl transition-all"
+                  onClick={() => {
+                    setSelectedImage(image);
+                    setActiveImageIndex(index);
+                  }}
+                >
+                  <img 
+                    src={image.url} 
+                    alt={image.caption || `Service image ${index + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      {image.caption && <p className="text-white text-xs font-medium">{image.caption}</p>}
+                      {image.caption_amharic && <p className="text-white text-xs opacity-80">{image.caption_amharic}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Related Services */}
+      {relatedServices.length > 0 && (
+        <section className="py-16" style={{ background: '#fff' }}>
+          <div className="max-w-6xl mx-auto px-4">
+            <SectionHeading eyebrow="More Services / ተጨማሪ አገልግሎቶች" title="Related Services" center />
+            <div className="grid md:grid-cols-3 gap-6">
+              {relatedServices.map(s => {
+                const coverImage = s.images && s.images.length > 0 ? s.images[0].url : null;
+                return (
+                  <Link key={s._id} to={`/services/${s._id}`} className="block hover:no-underline">
+                    <Card hover className="!p-0 overflow-hidden shadow-md hover:shadow-xl transition-all">
+                      <div className="h-40 overflow-hidden bg-gray-100">
+                        {coverImage ? (
+                          <img src={coverImage} alt={s.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center" style={{ background: C.blue }}>
+                            <span className="text-5xl">{s.icon || '⛪'}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <Badge color="blue">{s.type}</Badge>
+                        <h3 className="font-semibold text-sm mt-2 mb-1" style={{ color: C.blue }}>{s.title}</h3>
+                        <p className="text-xs line-clamp-2" style={{ color: C.gray600 }}>{s.description?.substring(0, 80)}...</p>
+                      </div>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CTA */}
+      <section className="py-16" style={{ background: `linear-gradient(135deg, ${C.blue} 0%, ${C.blueDark} 100%)` }}>
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <OrthodoxCross size={48} color={C.gold} />
+          <h2 className="text-2xl md:text-3xl font-bold mt-4 mb-4" style={{ color: '#fff' }}>
+            Support Our Mission / ተልዕኳችንን ይደግፉ
+          </h2>
+          <p className="text-base mb-8" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            Your support helps us continue serving our community.
+            <br />
+            ድጋፍዎ ማኅበረሰባችንን ማገልገል እንድንቀጥል ያግዘናል።
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/donate">
+              <Btn variant="gold">Donate Now / ይለግሱ</Btn>
+            </Link>
+            <Link to="/contact">
+              <Btn variant="outline" className="!border-white !text-white hover:!bg-white hover:!text-[#1a365d]">
+                Contact Us / ያግኙን
+              </Btn>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Back Link */}
+      <section className="py-8" style={{ background: C.gray50 }}>
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <Link to="/services">
+            <Btn variant="outline">← Back to All Services</Btn>
+          </Link>
+        </div>
+      </section>
+
+      {/* Lightbox */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-10"
+            onClick={() => setSelectedImage(null)}
+          >
+            ✕
+          </button>
+          
+          {service.images.length > 1 && (
+            <>
+              <button 
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-4xl hover:text-gray-300 z-10 p-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newIndex = activeImageIndex > 0 ? activeImageIndex - 1 : service.images.length - 1;
+                  setActiveImageIndex(newIndex);
+                  setSelectedImage(service.images[newIndex]);
+                }}
+              >
+                ‹
+              </button>
+              <button 
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white text-4xl hover:text-gray-300 z-10 p-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newIndex = activeImageIndex < service.images.length - 1 ? activeImageIndex + 1 : 0;
+                  setActiveImageIndex(newIndex);
+                  setSelectedImage(service.images[newIndex]);
+                }}
+              >
+                ›
+              </button>
+            </>
+          )}
+          
+          <div className="relative max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={selectedImage.url} 
+              alt={selectedImage.caption}
+              className="w-full h-auto max-h-[85vh] object-contain rounded-lg"
+            />
+            {(selectedImage.caption || selectedImage.caption_amharic) && (
+              <div className="text-center mt-4">
+                {selectedImage.caption && <p className="text-white text-lg">{selectedImage.caption}</p>}
+                {selectedImage.caption_amharic && <p className="text-white/70 text-sm mt-1">{selectedImage.caption_amharic}</p>}
+              </div>
+            )}
+            <p className="text-center text-white/50 text-xs mt-2">
+              {activeImageIndex + 1} / {service.images.length}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── REPORTS ──────────────────────────────────────────────────────────────────
 
 export function Reports() {
