@@ -151,15 +151,17 @@ export function StatCard({ icon, value, label, color = C.gold }) {
 export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setRole = () => {} }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // ✅ PUBLIC NAV LINKS ONLY - Removed Admin links
+  // ✅ UPDATED: Removed "What We Do", "Sermons", and "Events"
   const publicLinks = [
     { label: 'Home', page: 'home' },
     { label: 'About', page: 'about' },
     { label: 'Services', page: 'services' },
+    // { label: 'What We Do', page: 'whatwedo' },  // ← REMOVED
     { label: 'Blog', page: 'blog' },
+    // { label: 'Sermons', page: 'sermons' },      // ← REMOVED
+    // { label: 'Events', page: 'events' },        // ← REMOVED
     { label: 'Donate', page: 'donate' },
     { label: 'Contact', page: 'contact' },
-    {label: 'Admin',page: 'admin'   },
   ];
 
   function handleLogin(r) {
@@ -187,7 +189,7 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
           </div>
         </button>
 
-        {/* Desktop nav - Public only */}
+        {/* Desktop nav - Now shows only 6 items */}
         <div className="hidden lg:flex items-center gap-1">
           {publicLinks.map(l => (
             <button key={l.page} onClick={() => setPage(l.page)}
@@ -201,7 +203,7 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
           ))}
         </div>
 
-        {/* Auth section - Removed Admin button, only Member Login */}
+        {/* Auth + role switcher */}
         <div className="flex items-center gap-2">
           {role === 'guest' ? (
             <div className="flex gap-1.5">
@@ -209,6 +211,11 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold"
                 style={{ background: 'rgba(201,168,76,0.15)', color: C.gold, border: '1px solid rgba(201,168,76,0.3)' }}>
                 Member Login
+              </button>
+              <button onClick={() => handleLogin('admin')}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: C.gold, color: C.blue }}>
+                Admin
               </button>
             </div>
           ) : (
@@ -235,7 +242,43 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
                       Profile
                     </button>
                   </>
-                ) : null}
+                ) : (
+                  <>
+                    <button onClick={() => setPage('admin.dashboard')} 
+                      className="px-2.5 py-1.5 rounded text-xs font-medium" 
+                      style={{ 
+                        color: isPage('admin.d') ? C.gold : 'rgba(255,255,255,0.7)',
+                        background: isPage('admin.d') ? 'rgba(201,168,76,0.15)' : 'transparent' 
+                      }}>
+                      Dashboard
+                    </button>
+                    <button onClick={() => setPage('admin.members')} 
+                      className="px-2.5 py-1.5 rounded text-xs font-medium" 
+                      style={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Members
+                    </button>
+                    <button onClick={() => setPage('admin.donations')} 
+                      className="px-2.5 py-1.5 rounded text-xs font-medium" 
+                      style={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Donations
+                    </button>
+                    <button onClick={() => setPage('admin.content')} 
+                      className="px-2.5 py-1.5 rounded text-xs font-medium" 
+                      style={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Content
+                    </button>
+                    <button onClick={() => setPage('admin.services')} 
+                      className="px-2.5 py-1.5 rounded text-xs font-medium" 
+                      style={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Services
+                    </button>
+                    <button onClick={() => setPage('admin.reports')} 
+                      className="px-2.5 py-1.5 rounded text-xs font-medium" 
+                      style={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Reports
+                    </button>
+                  </>
+                )}
               </div>
               <button onClick={() => { setRole('guest'); setPage('home') }}
                 className="px-2.5 py-1 rounded text-xs font-medium"
@@ -248,7 +291,7 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
         </div>
       </div>
 
-      {/* Mobile menu - Public only */}
+      {/* Mobile menu - Updated to match */}
       {menuOpen && (
         <div className="lg:hidden border-t" style={{ borderColor: 'rgba(255,255,255,0.1)', background: C.blueDark }}>
           {publicLinks.map(l => (
@@ -267,10 +310,11 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 export function Footer({ setPage }) {
-  // Updated footer links - Removed admin-related links
+  // Updated footer links - removed What We Do, Sermons, Events
   const links = [
     { label: 'About Us', page: 'about' },
     { label: 'Services', page: 'services' },
+    // { label: 'Events', page: 'events' },  // ← REMOVED
     { label: 'Blog', page: 'blog' },
     { label: 'Contact', page: 'contact' },
     { label: 'Donate', page: 'donate' },
@@ -283,7 +327,7 @@ export function Footer({ setPage }) {
           <div className="flex items-center gap-2 mb-4">
             <OrthodoxCross size={28} color={C.gold} />
             <div>
-              <p className="font-bold text-sm" style={{ color: C.gold, fontFamily: "'Playfair Display', serif" }}>Mehbere Edomias</p>
+              <p className="font-bold text-sm" style={{ color: C.gold, fontFamily: "'Playfair Display', serif" }}>Mahbere Edomias</p>
               <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Spiritual Association</p>
             </div>
           </div>
@@ -337,7 +381,7 @@ export function Footer({ setPage }) {
       </div>
 
       <div className="border-t text-center py-4 text-xs" style={{ borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)' }}>
-        © {new Date().getFullYear()} Mehbere Edomias Orthodox Tewahdo Spiritual Association. All rights reserved.
+        © {new Date().getFullYear()} Mahbere Edomias Orthodox Tewahdo Spiritual Association. All rights reserved.
       </div>
     </footer>
   );
