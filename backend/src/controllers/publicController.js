@@ -12,10 +12,12 @@ const getHistory = async (req, res) => {
       mission: 'To provide a spiritually nourishing environment for Ethiopian Orthodox Tewahdo Christians - celebrating the sacraments, observing the fasting calendar, supporting one another in faith, and serving our broader community with love and humility.',
       vision: 'A vibrant, intergenerational community where Orthodox faith is lived deeply, Ethiopian heritage is honored proudly, and every member grows in holiness - a light to our city and a blessing to all who encounter us.',
       values: [
-        { title: 'Faith', description: 'Rooted in the ancient tradition of the Ethiopian Orthodox Church' },
-        { title: 'Community', description: 'Supporting each other in spiritual and everyday life' },
-        { title: 'Service', description: 'Reaching out to those in need with love and compassion' },
+        { title: 'Faith', title_amharic: 'እምነት', description: 'Rooted in the ancient tradition of the Ethiopian Orthodox Church', description_amharic: 'በኢትዮጵያ ኦርቶዶክስ ቤተ ክርስቲያን ጥንታዊ ትውፊት የተመሠረተ' },
+        { title: 'Community', title_amharic: 'ማኅበረሰብ', description: 'Supporting each other in spiritual and everyday life', description_amharic: 'በመንፈሳዊ እና በዕለት ተዕለት ሕይወት እርስ በርስ መደጋገፍ' },
+        { title: 'Service', title_amharic: 'አገልግሎት', description: 'Reaching out to those in need with love and compassion', description_amharic: 'በፍቅር እና በርህራሄ ለተቸገሩ መድረስ' },
       ],
+      mission_amharic: 'የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያንን እምነትና ሥርዓት በመጠበቅ ከትውልድ ወደ ትውልድ ማስተላለፍ፣ የገጠር ገዳማትና አብያተ ክርስቲያናት አገልጋዮችን በቁሳቁስ፣ በገንዘብ እና በስልጠና መደገፍ፣ መንፈሳዊ ትምህርት ለሁሉም ማድረስ ነው።',
+      vision_amharic: 'ምእመናን በእምነታቸው ጽኑዎች፣ ኃጢአትን የሚጸየፉ፣ ንስሐ የሚገቡ እንዲሆኑ ማድረግ፤ አባላትም ዕውቀታቸውንና ሀብታቸውን በማቀናጀት ለገጠር አብያተ ክርስቲያናት፣ ገዳማት እና ትምህርት ቤቶች አገልግሎት የሚሰጡበት የተባበረ ማኅበረሰብ መፍጠር ነው።',
       timeline: [
         { year: '2012', event: 'Association founded by a group of devoted Orthodox Christians' },
         { year: '2014', event: 'First community outreach program launched' },
@@ -38,7 +40,7 @@ const getHistory = async (req, res) => {
 };
 
 /**
- * Get services from database
+ * Get all services from database (with images)
  */
 const getServices = async (req, res) => {
   try {
@@ -51,6 +53,39 @@ const getServices = async (req, res) => {
       data: services,
     });
   } catch (error) {
+    console.error('Get services error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get single service by ID (public) - with images
+ */
+const getServiceById = async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.serviceId)
+      .select('-__v');
+    
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found',
+      });
+    }
+
+    // Increment view count if you add that field later
+    // service.views = (service.views || 0) + 1;
+    // await service.save();
+
+    res.status(200).json({
+      success: true,
+      data: service,
+    });
+  } catch (error) {
+    console.error('Get service by id error:', error);
     res.status(400).json({
       success: false,
       message: error.message,
@@ -234,6 +269,14 @@ const getHomepageData = async (req, res) => {
       .sort({ date: 1 })
       .limit(3);
 
+    // Get featured services (for homepage preview)
+    const featuredServices = await Service.find({ 
+      isActive: true 
+    })
+      .sort({ order: 1 })
+      .limit(4)
+      .select('title description icon type images');
+
     // Get testimonies
     const testimonies = [
       {
@@ -258,10 +301,12 @@ const getHomepageData = async (req, res) => {
         summary,
         featuredBlogs,
         upcomingEvents,
+        featuredServices,
         testimonies,
       },
     });
   } catch (error) {
+    console.error('Get homepage data error:', error);
     res.status(400).json({
       success: false,
       message: error.message,
@@ -272,6 +317,7 @@ const getHomepageData = async (req, res) => {
 module.exports = {
   getHistory,
   getServices,
+  getServiceById,
   getWhatWeDo,
   getContactInfo,
   submitContact,
