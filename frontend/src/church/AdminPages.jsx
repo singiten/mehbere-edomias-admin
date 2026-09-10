@@ -1739,25 +1739,30 @@ export function ContentManagement() {
 
 // ─── SERVICE MANAGEMENT ──────────────────────────────────────────────────────
 
+// ─── SERVICE MANAGEMENT ──────────────────────────────────────────────────────
+
 export function ServiceManagement() {
   const [servicesList, setServicesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [editingService, setEditingService] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    detailedDescription: '',
     schedule: '',
     icon: '⛪',
     type: 'Other',
+    images: [],
+    impact: {
+      peopleServed: 0,
+      churchesSupported: 0,
+      eventsHeld: 0,
+    },
     isActive: true,
     order: 0,
-    images: [],  // ← Add this
-  impact: {    // ← Add this
-    peopleServed: 0,
-    churchesSupported: 0,
-    eventsHeld: 0,
-  },
   });
 
   useEffect(() => {
@@ -1780,76 +1785,236 @@ export function ServiceManagement() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingService) {
-        await services.update(editingService._id, formData);
-        toast.success('Service updated successfully');
-      } else {
-        await services.create(formData);
-        toast.success('Service created successfully');
-      }
-      setShowModal(false);
-      setEditingService(null);
-      setFormData({
-        title: '',
-        description: '',
-        schedule: '',
-        icon: '⛪',
-        type: 'Other',
-        isActive: true,
-        order: 0,
-        images: [],  // ← Add this
-  impact: {    // ← Add this
-    peopleServed: 0,
-    churchesSupported: 0,
-    eventsHeld: 0,
-  },
-      });
-      fetchServices();
-    } catch (error) {
-      console.error('❌ Failed to save service:', error);
-      toast.error(error.response?.data?.message || 'Failed to save service');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this service?')) return;
-    try {
-      await services.delete(id);
-      toast.success('Service deleted successfully');
-      fetchServices();
-    } catch (error) {
-      console.error('❌ Failed to delete service:', error);
-      toast.error('Failed to delete service');
-    }
-  };
-
-  const handleEdit = (service) => {
-    setEditingService(service);
-    setFormData({
-      title: service.title,
-      description: service.description,
-      schedule: service.schedule || '',
-      icon: service.icon || '⛪',
-      type: service.type || 'Other',
-      isActive: service.isActive !== undefined ? service.isActive : true,
-      order: service.order || 0,
-    });
-    setShowModal(true);
-  };
-
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Handle nested impact fields
+    if (name.startsWith('impact.')) {
+      const impactField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        impact: {
+          ...prev.impact,
+          [impactField]: parseInt(value) || 0,
+        },
+      }));
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
+  // ─── IMAGE UPLOAD HANDLER ──────────────────────────────────────────────────
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploadingImage(true);
+
+    try {
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      if (!cloudName) {
+        throw new Error('Cloudinary cloud name is not configured');
+      }
+
+      const uploadedImages = [];
+
+      for (const file of files) {
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+          toast.error(`${file.name} is not a valid image type`);
+          continue;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (max 5MB)`);
+          continue;
+        }
+
+        const imageFormData = new FormData();
+        imageFormData.append('file', file);
+        imageFormData.append('upload_preset', 'mehbere_edomias');
+        imageFormData.append('folder', 'services');
+
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          {
+            method: 'POST',
+            body: imageFormData,
+          }
+        );
+
+        const data = await response.json();
+
+        if (data.secure_url) {
+          uploadedImages.push({
+            url: data.secure_url,
+            caption: '',
+            caption_amharic: '',
+            uploadedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      if (uploadedImages.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...uploadedImages],
+        }));
+        toast.success(`${uploadedImages.length} image(s) uploaded successfully!`);
+      }
+    } catch (error) {
+      console.error('❌ Upload error:', error);
+      toast.error(error.message || 'Failed to upload images');
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleImageCaptionChange = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.map((img, i) => 
+        i === index ? { ...img, [field]: value } : img
+      ),
+    }));
+  };
+
+  const handleReorderImage = (index, direction) => {
+    const newImages = [...formData.images];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIndex < 0 || targetIndex >= newImages.length) return;
+    
+    [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
+    
+    setFormData(prev => ({
+      ...prev,
+      images: newImages,
+    }));
+  };
+
+  // ─── SUBMIT HANDLER ─────────────────────────────────────────────────────────
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      // Validate required fields
+      if (!formData.title || !formData.description) {
+        toast.error('Title and Description are required');
+        setSubmitting(false);
+        return;
+      }
+
+      const serviceData = {
+        title: formData.title,
+        description: formData.description,
+        detailedDescription: formData.detailedDescription || '',
+        schedule: formData.schedule || '',
+        icon: formData.icon || '⛪',
+        type: formData.type || 'Other',
+        images: formData.images || [],
+        impact: formData.impact || { peopleServed: 0, churchesSupported: 0, eventsHeld: 0 },
+        isActive: formData.isActive !== undefined ? formData.isActive : true,
+        order: formData.order || 0,
+      };
+
+      console.log('⛪ Saving service:', serviceData);
+
+      if (editingService) {
+        await services.update(editingService._id, serviceData);
+        toast.success('Service updated successfully');
+      } else {
+        await services.create(serviceData);
+        toast.success('Service created successfully');
+      }
+
+      setShowModal(false);
+      resetForm();
+      await fetchServices();
+    } catch (error) {
+      console.error('❌ Failed to save service:', error);
+      toast.error(error.response?.data?.message || 'Failed to save service');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = (service) => {
+    setEditingService(service);
+    setFormData({
+      title: service.title || '',
+      description: service.description || '',
+      detailedDescription: service.detailedDescription || '',
+      schedule: service.schedule || '',
+      icon: service.icon || '⛪',
+      type: service.type || 'Other',
+      images: service.images || [],
+      impact: service.impact || {
+        peopleServed: 0,
+        churchesSupported: 0,
+        eventsHeld: 0,
+      },
+      isActive: service.isActive !== undefined ? service.isActive : true,
+      order: service.order || 0,
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this service? This action cannot be undone.')) return;
+    try {
+      await services.delete(id);
+      toast.success('Service deleted successfully');
+      await fetchServices();
+    } catch (error) {
+      console.error('❌ Failed to delete service:', error);
+      toast.error('Failed to delete service');
+    }
+  };
+
+  const resetForm = () => {
+    setEditingService(null);
+    setFormData({
+      title: '',
+      description: '',
+      detailedDescription: '',
+      schedule: '',
+      icon: '⛪',
+      type: 'Other',
+      images: [],
+      impact: {
+        peopleServed: 0,
+        churchesSupported: 0,
+        eventsHeld: 0,
+      },
+      isActive: true,
+      order: 0,
+    });
+  };
+
+  const handleOpenCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
   const typeOptions = ['Liturgy', 'Fasting', 'Feast Days', 'Education', 'Outreach', 'Other'];
-  const iconOptions = ['⛪', '🕯️', '🎊', '📖', '🤲', '❤️', '🕊️', '🙏', '✨'];
+  const iconOptions = ['⛪', '🕯️', '🎊', '📖', '🤲', '❤️', '🕊️', '🙏', '✨', '📿', '🎵', '🍽️', '📚', '🏛️', '✝️'];
 
   if (loading) {
     return (
@@ -1859,133 +2024,273 @@ export function ServiceManagement() {
     );
   }
 
-
   return (
     <div className="min-h-screen" style={{ background: C.gray50 }}>
       <div className="max-w-7xl mx-auto px-4 py-10">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <SectionHeading eyebrow="Admin" title="Service Management" />
-          <Btn variant="primary" onClick={() => {
-            setEditingService(null);
-            setFormData({
-              title: '',
-              description: '',
-              schedule: '',
-              icon: '⛪',
-              type: 'Other',
-              isActive: true,
-              order: 0,
-              images: [],  // ← Add this
-  impact: {    // ← Add this
-    peopleServed: 0,
-    churchesSupported: 0,
-    eventsHeld: 0,
-  },
-            });
-            setShowModal(true);
-          }}>
+          <Btn variant="primary" onClick={handleOpenCreateModal}>
             + Add Service
           </Btn>
         </div>
 
+        {/* Stats Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <StatCard 
+            icon="⛪" 
+            value={servicesList.length} 
+            label="Total Services" 
+            color={C.blue} 
+          />
+          <StatCard 
+            icon="✅" 
+            value={servicesList.filter(s => s.isActive).length} 
+            label="Active Services" 
+            color={C.success} 
+          />
+          <StatCard 
+            icon="📷" 
+            value={servicesList.reduce((sum, s) => sum + (s.images?.length || 0), 0)} 
+            label="Total Images" 
+            color={C.gold} 
+          />
+          <StatCard 
+            icon="📊" 
+            value={servicesList.reduce((sum, s) => sum + (s.impact?.peopleServed || 0), 0)} 
+            label="People Served" 
+            color={C.warning} 
+          />
+        </div>
+
+        {/* Services Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {servicesList.length > 0 ? (
-            servicesList.map((s) => (
-              <Card key={s._id} hover className="relative">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{s.icon || '⛪'}</span>
-                    <div>
-                      <h3 className="font-bold" style={{ color: C.blue }}>{s.title}</h3>
+            servicesList.map((s) => {
+              const coverImage = s.images && s.images.length > 0 ? s.images[0].url : null;
+              
+              return (
+                <Card key={s._id} hover className="!p-0 overflow-hidden shadow-md hover:shadow-xl transition-all">
+                  {/* Cover Image */}
+                  <div className="h-40 overflow-hidden bg-gray-100 relative">
+                    {coverImage ? (
+                      <img 
+                        src={coverImage} 
+                        alt={s.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-700">
+                        <span className="text-5xl">{s.icon || '⛪'}</span>
+                      </div>
+                    )}
+                    
+                    {/* Status Badge */}
+                    <div className="absolute top-2 right-2">
                       <Badge color={s.isActive ? 'green' : 'gray'}>
                         {s.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </div>
+                    
+                    {/* Image Count */}
+                    {s.images && s.images.length > 0 && (
+                      <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md text-xs font-medium"
+                        style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>
+                        📷 {s.images.length}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1">
-                    <Btn variant="ghost" small onClick={() => handleEdit(s)}>✏️</Btn>
-                    <Btn variant="ghost" small onClick={() => handleDelete(s._id)}>🗑️</Btn>
+
+                  {/* Content */}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{s.icon || '⛪'}</span>
+                        <div>
+                          <h3 className="font-bold text-base leading-tight" style={{ color: C.blue }}>
+                            {s.title}
+                          </h3>
+                          <Badge color="blue">{s.type || 'Other'}</Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <Btn variant="ghost" small onClick={() => handleEdit(s)} title="Edit">
+                          ✏️
+                        </Btn>
+                        <Btn variant="ghost" small onClick={() => handleDelete(s._id)} title="Delete">
+                          🗑️
+                        </Btn>
+                      </div>
+                    </div>
+
+                    <p className="text-sm mb-3 line-clamp-2" style={{ color: C.gray600 }}>
+                      {s.description}
+                    </p>
+
+                    {s.schedule && (
+                      <p className="text-xs mb-2 font-medium" style={{ color: C.gold }}>
+                        🕐 {s.schedule}
+                      </p>
+                    )}
+
+                    {/* Impact Stats */}
+                    {s.impact && (s.impact.peopleServed > 0 || s.impact.churchesSupported > 0) && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t text-xs" style={{ borderColor: C.gray100 }}>
+                        {s.impact.peopleServed > 0 && (
+                          <span className="px-2 py-1 rounded" style={{ background: C.gray50, color: C.gray600 }}>
+                            👥 {s.impact.peopleServed}
+                          </span>
+                        )}
+                        {s.impact.churchesSupported > 0 && (
+                          <span className="px-2 py-1 rounded" style={{ background: C.gray50, color: C.gray600 }}>
+                            ⛪ {s.impact.churchesSupported}
+                          </span>
+                        )}
+                        {s.impact.eventsHeld > 0 && (
+                          <span className="px-2 py-1 rounded" style={{ background: C.gray50, color: C.gray600 }}>
+                            📅 {s.impact.eventsHeld}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-3 pt-2 border-t flex items-center justify-between text-xs" style={{ borderColor: C.gray100 }}>
+                      <span style={{ color: C.gray400 }}>Order: {s.order || 0}</span>
+                      <span style={{ color: C.gray400 }}>
+                        {new Date(s.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm mt-2" style={{ color: C.gray600 }}>{s.description}</p>
-                {s.schedule && (
-                  <p className="text-xs mt-2 font-medium" style={{ color: C.gold }}>
-                    🕐 {s.schedule}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: C.gray400 }}>
-                  <span>Type: {s.type || 'Other'}</span>
-                  <span>·</span>
-                  <span>Order: {s.order || 0}</span>
-                </div>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           ) : (
-            <div className="col-span-3 text-center py-12">
-              <p className="text-4xl mb-4">⛪</p>
-              <p className="text-gray-400">No services created yet. Click "Add Service" to get started.</p>
+            <div className="col-span-3 text-center py-16">
+              <p className="text-6xl mb-4">⛪</p>
+              <h3 className="text-xl font-bold mb-2" style={{ color: C.blue }}>
+                No Services Yet
+              </h3>
+              <p className="text-sm mb-6" style={{ color: C.gray600 }}>
+                Click "Add Service" to create your first service with images
+              </p>
+              <Btn variant="primary" onClick={handleOpenCreateModal}>
+                + Add Your First Service
+              </Btn>
             </div>
           )}
         </div>
       </div>
 
+      {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,26,46,0.75)', backdropFilter: 'blur(4px)' }}>
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" 
+          style={{ background: 'rgba(15,26,46,0.75)', backdropFilter: 'blur(4px)' }}
+        >
+          <Card className="w-full max-w-3xl my-8 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-5 sticky top-0 bg-white pb-3 border-b" style={{ borderColor: C.gray100, zIndex: 10 }}>
               <h3 className="font-bold text-lg" style={{ color: C.blue }}>
                 {editingService ? 'Edit Service' : 'Add New Service'}
               </h3>
-              <button onClick={() => setShowModal(false)} style={{ color: C.gray400 }}>✕</button>
+              <button 
+                onClick={() => { setShowModal(false); resetForm(); }} 
+                style={{ color: C.gray400 }}
+                className="hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>Title *</label>
-                <input
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
-                  style={{ borderColor: C.gray100, color: C.gray800 }}
-                  placeholder="Enter service title"
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                    style={{ borderColor: C.gray100, color: C.gray800 }}
+                    placeholder="e.g., Community Outreach Program"
+                  />
+                </div>
 
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>Description *</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  required
-                  rows={3}
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
-                  style={{ borderColor: C.gray100, color: C.gray800 }}
-                  placeholder="Enter service description"
-                />
-              </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Short Description *
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    required
+                    rows={2}
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                    style={{ borderColor: C.gray100, color: C.gray800 }}
+                    placeholder="Brief description that appears on the services list page"
+                  />
+                </div>
 
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>Schedule</label>
-                <input
-                  name="schedule"
-                  value={formData.schedule}
-                  onChange={handleChange}
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
-                  style={{ borderColor: C.gray100, color: C.gray800 }}
-                  placeholder="e.g., Every Sunday, 6:00 AM - 9:00 AM"
-                />
-              </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Detailed Description (optional)
+                  </label>
+                  <textarea
+                    name="detailedDescription"
+                    value={formData.detailedDescription}
+                    onChange={handleInputChange}
+                    rows={4}
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                    style={{ borderColor: C.gray100, color: C.gray800 }}
+                    placeholder="Full description that appears on the service detail page"
+                  />
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>Icon</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Schedule
+                  </label>
+                  <input
+                    type="text"
+                    name="schedule"
+                    value={formData.schedule}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                    style={{ borderColor: C.gray100, color: C.gray800 }}
+                    placeholder="e.g., Every Sunday, 6:00 AM"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Order (for sorting)
+                  </label>
+                  <input
+                    type="number"
+                    name="order"
+                    value={formData.order}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                    style={{ borderColor: C.gray100, color: C.gray800 }}
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Icon
+                  </label>
                   <select
                     name="icon"
                     value={formData.icon}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
                     style={{ borderColor: C.gray100, color: C.gray800 }}
                   >
@@ -1996,11 +2301,13 @@ export function ServiceManagement() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>Type</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                    Type
+                  </label>
                   <select
                     name="type"
                     value={formData.type}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
                     style={{ borderColor: C.gray100, color: C.gray800 }}
                   >
@@ -2011,38 +2318,200 @@ export function ServiceManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>Order</label>
-                  <input
-                    type="number"
-                    name="order"
-                    value={formData.order}
-                    onChange={handleChange}
-                    className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
-                    style={{ borderColor: C.gray100, color: C.gray800 }}
-                    min="0"
-                  />
-                </div>
-
-                <div className="flex items-center mt-5">
-                  <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={formData.isActive}
-                    onChange={handleChange}
-                    className="mr-2"
-                  />
-                  <label className="text-sm" style={{ color: C.gray600 }}>Active</label>
+              {/* Impact Statistics */}
+              <div className="p-4 rounded-xl" style={{ background: C.gray50, border: `1px solid ${C.gray100}` }}>
+                <h4 className="text-sm font-semibold mb-3" style={{ color: C.blue }}>
+                  📊 Impact Statistics (optional)
+                </h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                      People Served
+                    </label>
+                    <input
+                      type="number"
+                      name="impact.peopleServed"
+                      value={formData.impact.peopleServed}
+                      onChange={handleInputChange}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                      style={{ borderColor: C.gray100, color: C.gray800 }}
+                      min="0"
+                      placeholder="500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                      Churches Supported
+                    </label>
+                    <input
+                      type="number"
+                      name="impact.churchesSupported"
+                      value={formData.impact.churchesSupported}
+                      onChange={handleInputChange}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                      style={{ borderColor: C.gray100, color: C.gray800 }}
+                      min="0"
+                      placeholder="15"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: C.gray600 }}>
+                      Events Held
+                    </label>
+                    <input
+                      type="number"
+                      name="impact.eventsHeld"
+                      value={formData.impact.eventsHeld}
+                      onChange={handleInputChange}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none border"
+                      style={{ borderColor: C.gray100, color: C.gray800 }}
+                      min="0"
+                      placeholder="50"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3 border-t" style={{ borderColor: C.gray100 }}>
-                <Btn variant="outline" className="flex-1" onClick={() => setShowModal(false)}>
+              {/* Image Gallery */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-semibold" style={{ color: C.blue }}>
+                    📷 Image Gallery ({formData.images.length} image{formData.images.length !== 1 ? 's' : ''})
+                  </label>
+                  <label 
+                    className="cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                    style={{ background: C.gold, color: C.blue }}
+                  >
+                    {uploadingImage ? '⏳ Uploading...' : '+ Upload Images'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {formData.images.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {formData.images.map((image, index) => (
+                      <div 
+                        key={index} 
+                        className="relative rounded-lg overflow-hidden border"
+                        style={{ borderColor: C.gray100 }}
+                      >
+                        {/* Image Preview */}
+                        <div className="h-32 bg-gray-100">
+                          <img 
+                            src={image.url} 
+                            alt={`Image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        
+                        {/* Image Controls */}
+                        <div className="p-2 space-y-2 bg-white">
+                          <input
+                            type="text"
+                            value={image.caption || ''}
+                            onChange={(e) => handleImageCaptionChange(index, 'caption', e.target.value)}
+                            className="w-full rounded px-2 py-1 text-xs outline-none border"
+                            style={{ borderColor: C.gray100 }}
+                            placeholder="English caption"
+                          />
+                          <input
+                            type="text"
+                            value={image.caption_amharic || ''}
+                            onChange={(e) => handleImageCaptionChange(index, 'caption_amharic', e.target.value)}
+                            className="w-full rounded px-2 py-1 text-xs outline-none border"
+                            style={{ borderColor: C.gray100 }}
+                            placeholder="የአማርኛ መግለጫ"
+                          />
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleReorderImage(index, 'up')}
+                                disabled={index === 0}
+                                className="px-2 py-0.5 rounded text-xs disabled:opacity-30"
+                                style={{ background: C.gray50, color: C.gray600 }}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReorderImage(index, 'down')}
+                                disabled={index === formData.images.length - 1}
+                                className="px-2 py-0.5 rounded text-xs disabled:opacity-30"
+                                style={{ background: C.gray50, color: C.gray600 }}
+                              >
+                                ↓
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              className="px-2 py-0.5 rounded text-xs"
+                              style={{ background: '#fee2e2', color: '#991b1b' }}
+                            >
+                              🗑 Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div 
+                    className="border-2 border-dashed rounded-lg p-8 text-center"
+                    style={{ borderColor: C.gray100 }}
+                  >
+                    <p className="text-3xl mb-2">📷</p>
+                    <p className="text-sm" style={{ color: C.gray600 }}>
+                      No images yet
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: C.gray400 }}>
+                      Click "Upload Images" to add photos (Max 5MB each)
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Active Status */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="isActive"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={handleInputChange}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="isActive" className="text-sm" style={{ color: C.gray600 }}>
+                  Make this service active (visible to public)
+                </label>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t" style={{ borderColor: C.gray100 }}>
+                <Btn 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={() => { setShowModal(false); resetForm(); }}
+                  type="button"
+                >
                   Cancel
                 </Btn>
-                <Btn variant="primary" type="submit" className="flex-1">
-                  {editingService ? 'Update Service' : 'Create Service'}
+                <Btn 
+                  variant="primary" 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Saving...' : editingService ? 'Update Service' : 'Create Service'}
                 </Btn>
               </div>
             </form>
