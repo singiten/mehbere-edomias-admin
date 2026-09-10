@@ -159,6 +159,7 @@ export function Navbar({ page = 'home', setPage = () => {}, role = 'guest', setR
     { label: 'Blog', page: 'blog' },
     { label: 'Donate', page: 'donate' },
     { label: 'Contact', page: 'contact' },
+    {label: 'Admin',page: 'admin'   },
   ];
 
   function handleLogin(r) {
