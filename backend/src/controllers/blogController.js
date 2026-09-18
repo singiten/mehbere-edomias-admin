@@ -1,6 +1,6 @@
 const blogService = require('../services/blogService');
 
-// ============ CREATE BLOG POST ============
+//  CREATE BLOG POST 
 const createBlogPost = async (req, res) => {
   try {
     if (!req.user) {
@@ -29,7 +29,7 @@ const createBlogPost = async (req, res) => {
   }
 };
 
-// ============ GET ALL BLOG POSTS ============
+//  GET ALL BLOG POSTS 
 const getAllBlogPosts = async (req, res) => {
   try {
     const result = await blogService.getAllBlogPosts(req.query);
@@ -46,7 +46,7 @@ const getAllBlogPosts = async (req, res) => {
   }
 };
 
-// ============ GET PUBLISHED BLOG POSTS ============
+// GET PUBLISHED BLOG POSTS 
 const getPublishedBlogPosts = async (req, res) => {
   try {
     const result = await blogService.getPublishedBlogPosts(req.query);
@@ -63,7 +63,7 @@ const getPublishedBlogPosts = async (req, res) => {
   }
 };
 
-// ============ GET BLOG POST BY SLUG ============
+//  GET BLOG POST BY SLUG 
 const getBlogPostBySlug = async (req, res) => {
   try {
     const blog = await blogService.getBlogPostBySlug(req.params.slug);
@@ -79,7 +79,7 @@ const getBlogPostBySlug = async (req, res) => {
   }
 };
 
-// ============ GET BLOG POST BY ID ============
+//  GET BLOG POST BY ID 
 const getBlogPostById = async (req, res) => {
   try {
     if (!req.user) {
@@ -102,7 +102,7 @@ const getBlogPostById = async (req, res) => {
   }
 };
 
-// ============ UPDATE BLOG POST ============
+//  UPDATE BLOG POST 
 const updateBlogPost = async (req, res) => {
   try {
     if (!req.user) {
@@ -126,7 +126,7 @@ const updateBlogPost = async (req, res) => {
   }
 };
 
-// ============ DELETE BLOG POST ============
+//  DELETE BLOG POST 
 const deleteBlogPost = async (req, res) => {
   try {
     if (!req.user) {
@@ -149,7 +149,7 @@ const deleteBlogPost = async (req, res) => {
   }
 };
 
-// ============ GET FEATURED BLOG POSTS ============
+//  GET FEATURED BLOG POSTS 
 const getFeaturedBlogPosts = async (req, res) => {
   try {
     const blogs = await blogService.getFeaturedBlogPosts();
