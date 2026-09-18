@@ -1,7 +1,7 @@
 // controllers/serviceController.js
 const { Service } = require('../models');
 
-// ============ CREATE SERVICE ============
+//  CREATE SERVICE 
 const createService = async (req, res) => {
   try {
     if (!req.user) {
@@ -30,7 +30,7 @@ const createService = async (req, res) => {
   }
 };
 
-// ============ GET ALL SERVICES ============
+//  GET ALL SERVICES 
 const getAllServices = async (req, res) => {
   try {
     const services = await Service.find()
@@ -48,7 +48,7 @@ const getAllServices = async (req, res) => {
   }
 };
 
-// ============ GET SERVICE BY ID ============
+// GET SERVICE BY ID
 const getServiceById = async (req, res) => {
   try {
     const service = await Service.findById(req.params.serviceId);
@@ -70,7 +70,7 @@ const getServiceById = async (req, res) => {
   }
 };
 
-// ============ UPDATE SERVICE ============
+//  UPDATE SERVICE 
 const updateService = async (req, res) => {
   try {
     if (!req.user) {
@@ -106,7 +106,7 @@ const updateService = async (req, res) => {
   }
 };
 
-// ============ DELETE SERVICE ============
+//  DELETE SERVICE 
 const deleteService = async (req, res) => {
   try {
     if (!req.user) {
