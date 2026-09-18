@@ -1,4 +1,4 @@
-// controllers/serviceController.js
+
 const { Service } = require('../models');
 
 //  CREATE SERVICE 
