@@ -1,6 +1,6 @@
 const authService = require('../services/authService');
 
-// ============ ADMIN CREATES MEMBER ============
+// admin creates member
 const createMember = async (req, res) => {
   try {
     const result = await authService.createMember(req.body);
@@ -17,7 +17,7 @@ const createMember = async (req, res) => {
   }
 };
 
-// ============ SELF REGISTRATION ============
+// self-registration
 const register = async (req, res) => {
   try {
     const result = await authService.register(req.body);
@@ -34,7 +34,7 @@ const register = async (req, res) => {
   }
 };
 
-// ============ LOGIN ============
+// login
 const login = async (req, res) => {
   try {
     const { user, token } = await authService.login(req.body);
@@ -52,7 +52,7 @@ const login = async (req, res) => {
   }
 };
 
-// ============ LOGOUT ============
+// logout
 const logout = async (req, res) => {
   try {
     return res.status(200).json({
@@ -67,7 +67,7 @@ const logout = async (req, res) => {
   }
 };
 
-// ============ GET CURRENT USER ============
+//GET CURRENT USER 
 const getCurrentUser = async (req, res) => {
   try {
     if (!req.user) {
@@ -89,7 +89,7 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
-// ============ EXPORT ALL AUTH FUNCTIONS ============
+//  EXPORT ALL AUTH FUNCTIONS
 module.exports = {
   createMember,
   register,
