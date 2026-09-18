@@ -1,8 +1,6 @@
 const { BlogPost, Event, Testimony, Service } = require('../models');
 
-/**
- * Get association history
- */
+
 const getHistory = async (req, res) => {
   try {
     // Static content - can be stored in database or returned directly
@@ -37,9 +35,7 @@ const getHistory = async (req, res) => {
   }
 };
 
-/**
- * Get services from database
- */
+
 const getServices = async (req, res) => {
   try {
     const services = await Service.find({ isActive: true })
@@ -58,9 +54,7 @@ const getServices = async (req, res) => {
   }
 };
 
-/**
- * Get what we do
- */
+
 const getWhatWeDo = async (req, res) => {
   try {
     const activities = [
@@ -105,19 +99,17 @@ const getWhatWeDo = async (req, res) => {
   }
 };
 
-/**
- * Get contact information
- */
+
 const getContactInfo = async (req, res) => {
   try {
     const contact = {
-      phone: '+251 9XX XXX XXX',
-      email: 'info@mehbereedomias.org',
+      phone: '+251 967722490',
+      email: 'singiten2127@gmail.com',
       address: {
-        street: 'Bole Sub-City, Woreda 03',
+        street: '4Kilo beniyer ebenether blg',
         city: 'Addis Ababa',
         country: 'Ethiopia',
-        landmark: 'Near St. Gabriel Church',
+        landmark: 'Near Medhanialem church',
       },
       hours: {
         weekday: 'Mon-Fri, 9 AM – 5 PM',
@@ -142,9 +134,7 @@ const getContactInfo = async (req, res) => {
   }
 };
 
-/**
- * Submit contact form
- */
+
 const submitContact = async (req, res) => {
   try {
     const { name, email, phone, subject, message } = req.body;
@@ -157,9 +147,7 @@ const submitContact = async (req, res) => {
       });
     }
 
-    // Here you can send an email notification to admin
-    // await sendContactEmail(name, email, phone, subject, message);
-
+    
     res.status(200).json({
       success: true,
       message: 'Thank you for your message. We will get back to you soon!',
@@ -172,13 +160,10 @@ const submitContact = async (req, res) => {
   }
 };
 
-/**
- * Get approved testimonies
- */
+
 const getTestimonies = async (req, res) => {
   try {
-    // For now, return static testimonies
-    // In production, fetch from database
+   
     const testimonies = [
       {
         id: '1',
@@ -211,9 +196,7 @@ const getTestimonies = async (req, res) => {
   }
 };
 
-/**
- * Get all homepage data in one request
- */
+
 const getHomepageData = async (req, res) => {
   try {
     // Get featured blog posts
