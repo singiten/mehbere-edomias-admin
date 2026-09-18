@@ -47,7 +47,7 @@ const MemberSchema = new mongoose.Schema({
   toObject: { virtuals: true },
 });
 
-// ✅ Generate membership ID without using next()
+//  Generate membership ID 
 MemberSchema.pre('save', async function() {
   if (!this.membershipId) {
     const year = new Date().getFullYear();
